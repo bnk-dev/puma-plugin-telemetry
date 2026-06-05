@@ -69,6 +69,31 @@ module Puma
             expect(plugin.call(telemetry)).to eq(targets)
           end
         end
+
+        describe '#run!' do
+          let(:log_writer) do
+            instance_double(::Puma::LogWriter, debug: nil, error: nil, unknown_error: nil)
+          end
+          let(:error) { StandardError.new('boom') }
+
+          before do
+            allow(described_class).to receive(:config).and_return(Telemetry::Config.new)
+            allow(described_class).to receive(:build).and_return({})
+            allow(plugin).to receive(:log_writer).and_return(log_writer)
+            allow(plugin).to receive(:call).and_raise(error)
+            # `loop` rescues StopIteration, so raising it from the `ensure`
+            # sleep lets us exit the otherwise-infinite loop after one pass.
+            allow(plugin).to receive(:sleep).and_raise(StopIteration)
+          end
+
+          it 'logs publish errors without exiting the process' do
+            plugin.run!
+
+            # `log_writer.error` calls `exit 1`; it must not be used here.
+            expect(log_writer).not_to have_received(:error)
+            expect(log_writer).to have_received(:unknown_error).with(error, nil, 'plugin=telemetry')
+          end
+        end
       end
     end
   end

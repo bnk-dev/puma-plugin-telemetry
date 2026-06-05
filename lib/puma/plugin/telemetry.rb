@@ -86,7 +86,10 @@ module Puma
           rescue Errno::EPIPE
             # Occurs when trying to output to STDOUT while puma is shutting down
           rescue StandardError => e
-            log_writer.error "plugin=telemetry err=#{e.class} msg=#{e.message.inspect}"
+            # NOTE: `log_writer.error` calls `exit 1`, which would take down the
+            # Puma master process. Telemetry publishing is expected to fail
+            # occasionally (e.g. transient IO errors), so log and keep serving.
+            log_writer.unknown_error(e, nil, 'plugin=telemetry')
           ensure
             sleep Puma::Plugin::Telemetry.config.frequency
           end

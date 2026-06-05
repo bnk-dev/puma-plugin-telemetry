@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Errors while publishing telemetry no longer take down the Puma master
+  process. Previously `log_writer.error` was used, which calls `exit 1`; we now
+  use `log_writer.unknown_error`, which logs the error and lets Puma keep
+  serving ([#31](https://github.com/babbel/puma-plugin-telemetry/issues/31)).
+
 ### Changed
 - Updated gems in the lockfile
 
