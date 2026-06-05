@@ -89,7 +89,7 @@ module Puma
             # NOTE: `log_writer.error` calls `exit 1`, which would take down the
             # Puma master process. Telemetry publishing is expected to fail
             # occasionally (e.g. transient IO errors), so log and keep serving.
-            log_writer.unknown_error(e, nil, 'plugin=telemetry')
+            log_telemetry_error(e)
           ensure
             sleep Puma::Plugin::Telemetry.config.frequency
           end
@@ -102,6 +102,21 @@ module Puma
         end
 
         private
+
+        # Log a telemetry publishing error without exiting the process.
+        #
+        # `unknown_error` changed signature across Puma versions: Puma 4's
+        # `Events#unknown_error` is `(server, error, kind, env)`, while Puma 5+
+        # (`Events` and later `LogWriter`) is `(error, req, text)`. Passing the
+        # exception in the wrong position drops it from the log (and on Puma 4
+        # even raises on `nil.backtrace`), so branch on the version.
+        def log_telemetry_error(error)
+          if Puma::Const::PUMA_VERSION.to_i < 5
+            log_writer.unknown_error(nil, error, 'plugin=telemetry')
+          else
+            log_writer.unknown_error(error, nil, 'plugin=telemetry')
+          end
+        end
 
         def log_writer
           if Puma::Const::PUMA_VERSION.to_i < 6
