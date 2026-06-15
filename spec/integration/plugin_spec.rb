@@ -46,6 +46,11 @@ module Puma
         end
 
         def expect_telemetry_line(line, target)
+          # Ruby 3.4 changed Hash#inspect to put spaces around `=>`
+          # (`"k" => 1` instead of `"k"=>1`). Normalize so the expectations
+          # below match regardless of Ruby version.
+          line = line.gsub(' => ', '=>')
+
           expect(line).to start_with "target=#{target} telemetry={"
           expect(line).to match(/"workers\.busy_threads"=>\d+/)
           pairs = expected_telemetry.map { |metric, value| "#{metric.inspect}=>#{value.inspect}" }
@@ -119,14 +124,17 @@ module Puma
 
           line.strip!
 
-          # Puma may pull the first 2 requests from backlog together or separately.
-          possible_lines = ['queue.backlog=1 sockets.backlog=5',
-                            'queue.backlog=0 sockets.backlog=6']
-
-          expect(possible_lines.include?(line)).to eq(true)
+          # 7 requests are in flight; the single worker thread is busy serving
+          # one, leaving 6 pending. Puma distributes those 6 between its internal
+          # queue (`queue.backlog`) and the kernel socket listen queue
+          # (`sockets.backlog`). The exact split depends on how quickly Puma has
+          # accepted connections off the socket, which differs between Puma
+          # versions (6.x leaves more in the socket queue than 7.x/8.x), so we
+          # assert on the invariant that matters: all 6 are accounted for.
+          expect(line).to match(/\Aqueue\.backlog=\d+ sockets\.backlog=\d+\z/)
 
           total = line.split.sum { |kv| kv.split('=').last.to_i }
-          expect(total).to eq 6
+          expect(total).to eq(6), "expected backlogs to sum to 6, got: #{line.inspect}"
 
           threads.each(&:join)
         end
