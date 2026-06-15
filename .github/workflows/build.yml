@@ -8,23 +8,22 @@ permissions:
 jobs:
   build_matrix:
     strategy:
+      fail-fast: false
       matrix:
-        os:
-          - "ubuntu-22.04"
-          - "ubuntu-24.04"
-          - "ubuntu-latest"
-        ruby:
-          - "3.0"
-          - "3.1"
-          - "3.2"
-          - "3.3"
-          - "3.4"
-        puma:
-          - "~> 6.6"
-          - "~> 7.0"
-          - "~> 8.0"
+        include:
+          # Every supported Ruby against the newest Puma.
+          - { ruby: "3.0", puma: "~> 8.0" }
+          - { ruby: "3.1", puma: "~> 8.0" }
+          - { ruby: "3.2", puma: "~> 8.0" }
+          - { ruby: "3.3", puma: "~> 8.0" }
+          - { ruby: "3.4", puma: "~> 8.0" }
+          # Older Puma majors against the oldest and newest supported Ruby.
+          - { ruby: "3.0", puma: "~> 7.0" }
+          - { ruby: "3.4", puma: "~> 7.0" }
+          - { ruby: "3.0", puma: "~> 6.6" }
+          - { ruby: "3.4", puma: "~> 6.6" }
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     env:
       PUMA_VERSION: ${{ matrix.puma }}
