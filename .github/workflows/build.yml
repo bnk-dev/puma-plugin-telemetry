@@ -1,6 +1,9 @@
 name: build
 
-on: [push, create, pull_request]
+on: [push, pull_request]
+
+permissions:
+  contents: read
 
 jobs:
   build_matrix:
@@ -16,8 +19,18 @@ jobs:
           - "3.2"
           - "3.3"
           - "3.4"
+        puma:
+          - "~> 6.6"
+          - "~> 7.0"
+          - "~> 8.0"
 
     runs-on: ${{ matrix.os }}
+
+    env:
+      PUMA_VERSION: ${{ matrix.puma }}
+      # The committed Gemfile.lock pins the default Puma; pinning another
+      # version via PUMA_VERSION requires resolving a fresh lockfile.
+      BUNDLE_FROZEN: "false"
 
     steps:
       # Environment setup
@@ -43,41 +56,3 @@ jobs:
       - name: Dummy for branch status checks
         run: |
           echo "build complete"
-
-  release:
-    permissions:
-      contents: write
-      id-token: write
-    runs-on: ubuntu-24.04
-
-    needs:
-      - build
-
-    if: github.event_name == 'create' && startsWith(github.ref, 'refs/tags/v')
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ruby/setup-ruby@v1
-
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-region: ${{ vars.AWS_REGION }}
-          role-to-assume: ${{ vars.AWS_IAM_ROLE_ARN }}
-      - uses: aws-actions/aws-secretsmanager-get-secrets@v2
-        with:
-          secret-ids: PUMA, ${{ vars.RUBYGEMS_SECRET_ARN }}
-          parse-json-secrets: true
-
-      - name: Create credentials
-        run: |
-          mkdir -p ~/.gem
-          cat << EOF > ~/.gem/credentials
-          ---
-          :rubygems_api_key: ${{ env.PUMA_RUBYGEMS_TOKEN  }}
-          EOF
-          chmod 0600 /home/runner/.gem/credentials
-
-      - name: Publish gem
-        run: |
-          gem build puma-plugin-telemetry.gemspec
-          gem push puma-plugin-telemetry-*.gem

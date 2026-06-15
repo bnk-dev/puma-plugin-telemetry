@@ -16,9 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`error, req, text`) ([#31](https://github.com/babbel/puma-plugin-telemetry/issues/31)).
 
 ### Changed
+- Widened the Puma dependency to `>= 6.6, < 9`, adding support for Puma 7 and 8.
+  No plugin code changes were required; the APIs the plugin relies on
+  (`Puma.stats_hash`, the stats hash keys, `Puma::Plugin`/`in_background`,
+  `launcher.binder.ios`, and `log_writer.unknown_error`) are unchanged across
+  these versions.
 - Updated gems in the lockfile
 
 ### Added
+- Test against Puma 6, 7, and 8 in CI via a `puma` version matrix axis.
 - Check for support for 'ubuntu-24.04'
 - Check for support for Ruby 3.4
 - Require Puma 6.6 or newer and emit `busy_threads` as `workers.busy_threads`
